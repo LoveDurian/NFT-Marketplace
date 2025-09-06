@@ -39,8 +39,8 @@ const Card = ({ tokenId, name, image, price, owner, isForSale }) => {
               </Typography>
               <Chip
                 size="small"
-                disabled={true}
-                label="Selling"
+                disabled={!isForSale}
+                label={isForSale ? "Selling" : "Not for Sale"}
                 className={classes.badge}
               />
             </div>
@@ -50,7 +50,7 @@ const Card = ({ tokenId, name, image, price, owner, isForSale }) => {
                 viewBox="0 0 400 426.6"
                 titleAccess="ETH"
               />
-              <span>{Web3.utils.fromWei(String(price), "ether")}.120000</span>
+              <span>{Web3.utils.fromWei(String(price), "ether")}</span>
             </Typography>
             <Divider className={classes.divider} light />
             <Typography
@@ -58,7 +58,7 @@ const Card = ({ tokenId, name, image, price, owner, isForSale }) => {
               align={"center"}
               className={classes.seller}
             >
-              {owner.slice(0, 7)}...{owner.slice(-4)}
+              owner: {owner.slice(0, 7)}...{owner.slice(-4)}
             </Typography>
           </CardContent>
         </CardActionArea>

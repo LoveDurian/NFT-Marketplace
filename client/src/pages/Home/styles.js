@@ -51,6 +51,13 @@ const useStyles = makeStyles({
     fontSize: "1.8rem",
     fontWeight: "600",
     marginBottom: "1rem",
+  },
+  emptyText: {
+    fontFamily: "sans-serif",
+    fontSize: "1.2rem",
+    color: "#666",
+    textAlign: "center",
+    marginTop: "2rem",
   }
 });
 

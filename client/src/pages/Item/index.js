@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useHistory } from "react-router-dom";
 import Button from "@material-ui/core/Button";
 import KeyboardBackspaceIcon from "@material-ui/icons/KeyboardBackspace";
 import InputAdornment from "@material-ui/core/InputAdornment";
@@ -14,10 +14,14 @@ import { useStyles } from "./styles.js";
 
 const Item = () => {
   const classes = useStyles();
+  const history = useHistory();
 
   const { nftId } = useParams();
   const marketplaceContract = useSelector(
     (state) => state.allNft.marketplaceContract
+  );
+  const artTokenContract = useSelector(
+    (state) => state.allNft.artTokenContract
   );
   const account = useSelector((state) => state.allNft.account);
   let nft = useSelector((state) => state.nft);
@@ -35,27 +39,49 @@ const Item = () => {
     saleId,
     isForSale,
     isSold,
-  } = nft;
+  } = nftItem && nftItem[0] ? nftItem[0] : nft;
   const dispatch = useDispatch();
 
   useEffect(() => {
-    if (nftId && nftId !== "" && nftItem) dispatch(selectedNft(nftItem[0]));
+    if (nftId && nftId !== "" && nftItem) {
+      console.log("NFT Item data:", nftItem[0]);
+      dispatch(selectedNft(nftItem[0]));
+    }
     return () => {
       dispatch(removeSelectedNft());
     };
   }, [nftId]);
 
+  console.log("Current NFT data:", nft);
+  console.log("NFT Item from filter:", nftItem);
+  console.log("Price value:", price);
+
+
   async function putForSale(id, price) {
     try {
-      // const itemIdex = getItemIndexBuyTokenId(id);
+      if (!artTokenContract || !marketplaceContract) {
+        alert("合约未加载，请刷新页面重试");
+        return;
+      }
 
-      // const marketAddress = ArtMarketplace.networks[1337].address;
-      // await artTokenContract.methods.approve(marketAddress, items[itemIdex].tokenId).send({from: accounts[0]});
-
+      console.log("开始授权NFT给市场合约...");
+      
+      // 先授权NFT给市场合约
+      const approveReceipt = await artTokenContract.methods
+        .approve(marketplaceContract.options.address, id)
+        .send({ gas: 100000, from: account });
+      console.log("授权成功:", approveReceipt);
+      
+      // 等待授权确认
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      console.log("开始上架NFT...");
       const receipt = await marketplaceContract.methods
         .putItemForSale(id, price)
         .send({ gas: 210000, from: account });
-      console.log(receipt);
+      console.log("上架成功:", receipt);
+      
+      history.push('/');
     } catch (error) {
       console.error("Error, puting for sale: ", error);
       alert("Error while puting for sale!");
@@ -69,6 +95,21 @@ const Item = () => {
         .send({ gas: 210000, value: price, from: account });
       console.log(receipt);
       const id = receipt.events.itemSold.id; ///saleId
+      
+      // 购买成功后，自动授权NFT给市场合约，方便下次出售
+      if (artTokenContract && marketplaceContract) {
+        try {
+          console.log("购买成功，自动授权NFT给市场合约...");
+          await artTokenContract.methods
+            .approve(marketplaceContract.options.address, id)
+            .send({ gas: 100000, from: account });
+          console.log("自动授权成功");
+        } catch (approveError) {
+          console.warn("自动授权失败，但不影响购买:", approveError);
+        }
+      }
+      
+      history.push('/');
     } catch (error) {
       console.error("Error, buying: ", error);
       alert("Error while buying!");
@@ -150,7 +191,7 @@ const Item = () => {
                     <Button
                       variant="contained"
                       color="primary"
-                      onClick={() => putForSale(tokenId, 200)}
+                      onClick={() => putForSale(tokenId, price)}
                     >
                       Sell
                     </Button>
@@ -159,7 +200,7 @@ const Item = () => {
                     <Button
                       variant="contained"
                       color="primary"
-                      onClick={() => buy(saleId, 200)}
+                      onClick={() => buy(saleId, price)}
                     >
                       Buy
                     </Button>

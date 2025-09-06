@@ -35,6 +35,7 @@ import galerie from "../../assets/galerie.svg";
 const Home = () => {
   const classes = useStyles();
   const nft = useSelector((state) => state.allNft.nft);
+  const account = useSelector((state) => state.allNft.account);
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -140,6 +141,10 @@ const Home = () => {
   console.log("Nft :", nft);
 
   const nftItem = useSelector((state) => state.allNft.nft);
+  
+  // 根据owner地址分组NFT
+  const myNfts = nftItem.filter(nft => nft.owner.toLowerCase() === account?.toLowerCase());
+  const otherNfts = nftItem.filter(nft => nft.owner.toLowerCase() !== account?.toLowerCase());
 
   return (
     <div className={classes.homepage}>
@@ -188,22 +193,55 @@ const Home = () => {
           </Grid>
         </Grid>
       </section>
-      <section className={classes.allNfts}>
-        <Typography className={classes.title}>Latest artwork</Typography>
-        <Grid
-          container
-          direction="row"
-          justifyContent="center"
-          alignItems="center"
-          spacing={2}
-        >
-          {nftItem.map((nft) => (
-            <Grid item key={nft.tokenId}>
-              <Card {...nft} />
-            </Grid>
-          ))}
-        </Grid>
-      </section>
+      {/* 我的NFT区域 */}
+      {myNfts.length > 0 && (
+        <section className={classes.allNfts}>
+          <Typography className={classes.title}>我的NFT ({myNfts.length})</Typography>
+          <Grid
+            container
+            direction="row"
+            justifyContent="center"
+            alignItems="center"
+            spacing={2}
+          >
+            {myNfts.map((nft) => (
+              <Grid item key={nft.tokenId}>
+                <Card {...nft} />
+              </Grid>
+            ))}
+          </Grid>
+        </section>
+      )}
+
+      {/* 其他NFT区域 */}
+      {otherNfts.length > 0 && (
+        <section className={classes.allNfts}>
+          <Typography className={classes.title}>其他NFT ({otherNfts.length})</Typography>
+          <Grid
+            container
+            direction="row"
+            justifyContent="center"
+            alignItems="center"
+            spacing={2}
+          >
+            {otherNfts.map((nft) => (
+              <Grid item key={nft.tokenId}>
+                <Card {...nft} />
+              </Grid>
+            ))}
+          </Grid>
+        </section>
+      )}
+
+      {/* 如果没有NFT，显示提示信息 */}
+      {nftItem.length === 0 && (
+        <section className={classes.allNfts}>
+          <Typography className={classes.title}>暂无NFT</Typography>
+          <Typography className={classes.emptyText}>
+            还没有任何NFT，快去创建您的第一个NFT吧！
+          </Typography>
+        </section>
+      )}
     </div>
   );
 };

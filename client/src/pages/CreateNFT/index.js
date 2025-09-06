@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { Link, useHistory } from "react-router-dom";
 import CancelOutlinedIcon  from "@material-ui/icons/CancelOutlined";
 import InputAdornment from '@material-ui/core/InputAdornment';
 import TextField from "@material-ui/core/TextField";
 import Button from "@material-ui/core/Button";
+import Web3 from "web3";
 
 import { useStyles } from "./styles.js";
 
@@ -20,6 +21,9 @@ const CreateNFT = () => {
   const artTokenContract = useSelector(
     (state) => state.allNft.artTokenContract
   );
+  const marketplaceContract = useSelector(
+    (state) => state.allNft.marketplaceContract
+  );
 
   const [selectedFile, setSelectedFile] = useState();
   const [formData, setFormData] = useState({
@@ -27,6 +31,7 @@ const CreateNFT = () => {
     description: "",
     price: "",
   });
+
 
   function handleInputChange(event) {
     let { name, value } = event.target;
@@ -38,13 +43,15 @@ const CreateNFT = () => {
 
   async function createNFT(event) {
     event.preventDefault();
-    const { title, description } = formData;
+    const { title, description, price } = formData;
 
     console.log("title: " + title);
+    console.log("price: " + price);
 
     const data = new FormData();
     data.append("name", title);
     data.append("description", description);
+    data.append("price", price); // 添加价格到后端
 
     if(selectedFile){
       data.append('img', selectedFile);
@@ -62,30 +69,37 @@ const CreateNFT = () => {
       });
       console.log(response);
 
-      mint(response.data.message);
+      // 将价格转换为Wei并传递给mint函数
+      const priceInWei = price ? Web3.utils.toWei(price, 'ether') : '0';
+      mint(response.data.message, priceInWei);
     } catch (error) {
       console.log(error);
       // error.response.data
     }
   }
 
-  async function mint(tokenMetadataURL) {
+  async function mint(tokenMetadataURL, priceInWei = '0') {
     try {
       const receipt = await artTokenContract.methods
         .mint(tokenMetadataURL)
         .send({ from: account });
       console.log(receipt);
-      console.log(receipt.events.Transfer.returnValues.tokenId);
-      // setItems(items => [...items, {
-      //   tokenId: receipt.events.Transfer.returnValues.tokenId,
-      //   creator: accounts[0],
-      //   owner: accounts[0],
-      //   uri: tokenMetadataURL,
-      //   isForSale: false,
-      //   saleId: null,
-      //   price: 0,
-      //   isSold: null
-      // }]);
+      const tokenId = receipt.events.Transfer.returnValues.tokenId;
+      console.log("Minted tokenId:", tokenId);
+      
+      // 如果设置了价格，自动上架到市场
+      if (priceInWei && priceInWei !== '0' && marketplaceContract) {
+        try {
+          await marketplaceContract.methods
+            .putItemForSale(tokenId, priceInWei)
+            .send({ from: account });
+          console.log("NFT已上架到市场，价格:", priceInWei);
+        } catch (marketError) {
+          console.error("上架到市场失败:", marketError);
+          // 即使上架失败，NFT已经创建成功，所以不阻止用户继续
+        }
+      }
+      
       history.push('/');
     } catch (error) {
       console.error("Error, minting: ", error);
